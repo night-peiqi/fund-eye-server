@@ -18,6 +18,11 @@ export default {
       return new Response(null, { headers: corsHeaders(origin, env) })
     }
 
+    // 专用接口: /api/fund/netvalue?code=xxx - 获取基金最新净值
+    if (url.pathname === '/api/fund/netvalue') {
+      return handleNetValue(url, origin, env)
+    }
+
     // 路由: /api/{target}/{path}
     const match = url.pathname.match(/^\/api\/(\w+)(\/.*)$/)
     if (!match) {
@@ -63,5 +68,57 @@ function corsHeaders(origin: string, env: Env): Record<string, string> {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Max-Age': '86400'
+  }
+}
+
+/**
+ * 获取基金最新净值（用于收盘后更新）
+ * 解析东方财富历史净值接口返回的 HTML 表格
+ */
+async function handleNetValue(url: URL, origin: string, env: Env): Promise<Response> {
+  const code = url.searchParams.get('code')
+  if (!code) {
+    return new Response(JSON.stringify({ error: 'Missing code parameter' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin, env) }
+    })
+  }
+
+  try {
+    const apiUrl = `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${code}&page=1&per=1`
+    const response = await fetch(apiUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': `https://fund.eastmoney.com/f10/jjjz_${code}.html`
+      }
+    })
+
+    const html = await response.text()
+    
+    // 解析 HTML 表格
+    // 格式: <td>2026-02-04</td><td>1.2345</td><td>1.2345</td><td class="...">0.50%</td>
+    const dateMatch = html.match(/<td>(\d{4}-\d{2}-\d{2})<\/td>/)
+    const valueMatch = html.match(/<td>(\d{4}-\d{2}-\d{2})<\/td><td[^>]*>([^<]+)<\/td>/)
+    const changeMatch = html.match(/<td[^>]*>(-?\d+\.?\d*)%<\/td>/)
+
+    if (dateMatch && valueMatch) {
+      return new Response(JSON.stringify({
+        netValue: parseFloat(valueMatch[2]) || 0,
+        netValueDate: dateMatch[1],
+        change: changeMatch ? parseFloat(changeMatch[1]) : 0
+      }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin, env) }
+      })
+    }
+
+    return new Response(JSON.stringify({ error: 'Failed to parse data', raw: html }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin, env) }
+    })
+  } catch (error) {
+    return new Response(JSON.stringify({ error: 'Request failed' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin, env) }
+    })
   }
 }
