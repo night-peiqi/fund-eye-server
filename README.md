@@ -2,6 +2,11 @@
 
 基金数据代理服务，部署在 Cloudflare Workers。
 
+## 生产地址
+
+- 服务地址: https://fund-eye-server.herozhu.workers.dev
+- Cloudflare 控制台: https://dash.cloudflare.com/
+
 ## 开发
 
 ```bash
