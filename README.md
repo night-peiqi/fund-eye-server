@@ -18,6 +18,8 @@ npm run dev
 
 ```bash
 npm run deploy
+或
+npx wrangler deploy
 ```
 
 ## API
