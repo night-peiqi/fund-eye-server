@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "build": "esbuild --bundle --outfile=./dist/index.js --platform=node --target=node20 ./src/index.ts",
+    "deploy": "npm run build && npx s deploy -y"
+  },
+  "dependencies": {
+    "hono": "^4.0.0",
+    "hono-alibaba-cloud-fc3-adapter": "^1.0.2"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260205.0",
-    "wrangler": "^4.62.0"
+    "@serverless-devs/s": "^3.0.0",
+    "esbuild": "^0.20.0"
   }
 }
