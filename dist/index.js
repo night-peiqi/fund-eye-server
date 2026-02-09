@@ -2225,6 +2225,43 @@ var API_TARGETS = {
   fundgz: "https://fundgz.1234567.com.cn",
   fundf10: "https://fundf10.eastmoney.com"
 };
+function formatSecId(code) {
+  const cleanCode = code.replace(/[^\d]/g, "");
+  if (cleanCode.startsWith("6")) {
+    return `1.${cleanCode}`;
+  } else if (cleanCode.startsWith("0") || cleanCode.startsWith("3")) {
+    return `0.${cleanCode}`;
+  } else if (cleanCode.startsWith("4") || cleanCode.startsWith("8")) {
+    return `0.${cleanCode}`;
+  }
+  return `0.${cleanCode}`;
+}
+async function getStockQuotes(codes) {
+  if (codes.length === 0)
+    return [];
+  const secids = codes.map(formatSecId).join(",");
+  const url = `https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f2,f3,f4,f12,f14&secids=${secids}&_=${Date.now()}`;
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "Referer": "https://quote.eastmoney.com/"
+    }
+  });
+  const data = await response.json();
+  const quotes = [];
+  if (data.data?.diff) {
+    for (const item of data.data.diff) {
+      quotes.push({
+        code: item.f12 || "",
+        name: item.f14 || "",
+        price: typeof item.f2 === "number" ? item.f2 : 0,
+        change: typeof item.f3 === "number" ? item.f3 : 0,
+        changeAmount: typeof item.f4 === "number" ? item.f4 : 0
+      });
+    }
+  }
+  return quotes;
+}
 app.use("*", cors({
   origin: "*",
   allowMethods: ["GET", "POST", "OPTIONS"],
@@ -2257,6 +2294,23 @@ app.get("/api/fund/netvalue", async (c) => {
     }
     return c.json({ error: "Failed to parse data", raw: html }, 500);
   } catch (error) {
+    return c.json({ error: "Request failed" }, 500);
+  }
+});
+app.get("/api/stock/quotes", async (c) => {
+  const codesParam = c.req.query("codes");
+  if (!codesParam) {
+    return c.json({ error: "Missing codes parameter" }, 400);
+  }
+  const codes = codesParam.split(",").map((s) => s.trim()).filter(Boolean);
+  if (codes.length === 0) {
+    return c.json({ error: "No valid codes provided" }, 400);
+  }
+  try {
+    const quotes = await getStockQuotes(codes);
+    return c.json({ data: quotes });
+  } catch (error) {
+    console.error("Failed to fetch stock quotes:", error);
     return c.json({ error: "Request failed" }, 500);
   }
 });
