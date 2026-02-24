@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { cors } from 'hono/cors'
+
 import { handle } from 'hono-alibaba-cloud-fc3-adapter'
 
 const app = new Hono()
@@ -77,13 +77,7 @@ async function getStockQuotes(codes: string[]): Promise<StockQuote[]> {
   return quotes
 }
 
-// CORS 中间件
-app.use('*', cors({
-  origin: '*',
-  allowMethods: ['GET', 'POST', 'OPTIONS'],
-  allowHeaders: ['Content-Type'],
-  maxAge: 86400
-}))
+
 
 // 专用接口: /api/fund/netvalue?code=xxx - 获取基金最新净值
 app.get('/api/fund/netvalue', async (c) => {
